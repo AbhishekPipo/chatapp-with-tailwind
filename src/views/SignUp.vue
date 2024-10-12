@@ -1,64 +1,79 @@
 <template>
-    <div class="flex justify-center items-center min-h-screen">
-      <div class="w-full max-w-xs">
-        <form @submit.prevent="handleSignUp" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
-          <h2 class="text-2xl font-bold mb-4">Sign Up</h2>
-          <div class="mb-4">
-            <label for="newUsername" class="block text-gray-700 text-sm font-bold mb-2">Username</label>
-            <input
-              v-model="newUsername"
-              id="newUsername"
-              type="text"
-              placeholder="Your username"
-              class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              required
-            />
-          </div>
-          <div class="mb-6">
-            <label for="newPassword" class="block text-gray-700 text-sm font-bold mb-2">Password</label>
-            <input
-              v-model="newPassword"
-              id="newPassword"
-              type="password"
-              placeholder="********"
-              class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              required
-            />
-          </div>
-          <div class="flex items-center justify-between">
-            <button
-              type="submit"
-              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-            >
-              Sign Up
-            </button>
-          </div>
-        </form>
-      </div>
+  <div class="flex justify-center items-center min-h-screen">
+    <div class="w-full max-w-xs">
+      <form @submit.prevent="register" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+        <h2 class="text-lg font-bold mb-4">Sign Up</h2>
+        <div class="mb-4">
+          <label class="block text-gray-700 text-sm font-bold mb-2" for="username">Username</label>
+          <input
+            type="text"
+            id="username"
+            v-model="username"
+            required
+            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          />
+        </div>
+        <div class="mb-4">
+          <label class="block text-gray-700 text-sm font-bold mb-2" for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            v-model="password"
+            required
+            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          />
+        </div>
+        <div class="flex items-center justify-between">
+          <button
+            type="submit"
+            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+          >
+            Sign Up
+          </button>
+        </div>
+      </form>
     </div>
-  </template>
-  
-  <script>
-  export default {
-    data() {
-      return {
-        newUsername: '',
-        newPassword: '',
-      };
-    },
-    methods: {
-      handleSignUp() {
-        // Simulate static data check
-        if (this.newUsername && this.newPassword) {
-          alert('Sign up successful!');
-        } else {
-          alert('Please fill in all fields.');
+  </div>
+</template>
+
+<script>
+import { ref } from 'vue';
+import { db } from '../firebase'; // Import Firestore
+import { collection, addDoc } from 'firebase/firestore';
+
+export default {
+  name: 'SignUpComponent',
+  setup() {
+    const username = ref('');
+    const password = ref('');
+
+    const register = async () => {
+      if (username.value && password.value) {
+        try {
+          const usersRef = collection(db, 'users');
+          await addDoc(usersRef, {
+            username: username.value,
+            password: password.value, // Consider hashing passwords for security
+          });
+          alert('User registered successfully!');
+        } catch (error) {
+          console.error("Error adding document: ", error);
+          alert('Failed to register user.');
         }
-      },
-    },
-  };
-  </script>
-  
-  <style scoped>
-  </style>
-  
+      } else {
+        alert('Please fill in all fields.');
+      }
+    };
+
+    return {
+      username,
+      password,
+      register,
+    };
+  },
+};
+</script>
+
+<style scoped>
+/* Additional styles if needed */
+</style>

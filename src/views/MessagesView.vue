@@ -84,6 +84,9 @@
 </template>
 
 <script>
+import { db } from '../firebase'; // Import Firestore
+import { collection, addDoc, onSnapshot } from 'firebase/firestore';
+
 export default {
   name: 'MessagesView',
   data() {
@@ -92,46 +95,48 @@ export default {
         name: 'You', // Simulating logged-in user
         avatar: 'https://via.placeholder.com/40',
       },
-      messages: [
-        { id: 1, name: 'John Doe', avatar: 'https://via.placeholder.com/40', lastMessage: 'Hello there!' },
-        { id: 2, name: 'Jane Smith', avatar: 'https://via.placeholder.com/40', lastMessage: 'How are you?' },
-        // Add more messages here
-      ],
+      messages: [], // To store contacts
       chatMessages: [], // To store chat messages
       newMessage: '', // For the new message input
       selectedContact: null, // To store the currently selected contact
     };
   },
+  created() {
+    this.loadContacts();
+  },
   methods: {
+    async loadContacts() {
+      // Load contacts from Firestore
+      const contactsRef = collection(db, 'contacts');
+      onSnapshot(contactsRef, (snapshot) => {
+        this.messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      });
+    },
     selectContact(contact) {
-      // Clear current chat messages before selecting a new contact
       this.storeChatMessages();
       this.selectedContact = contact;
-      this.chatMessages = []; // Clear messages for the new contact
+      this.loadChatMessages(contact.id); // Load messages for the selected contact
     },
-    sendMessage() {
+    async loadChatMessages(contactId) {
+      const chatRef = collection(db, `chats/${this.currentUser.name}_${contactId}/messages`);
+      onSnapshot(chatRef, (snapshot) => {
+        this.chatMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      });
+    },
+    async sendMessage() {
       if (this.newMessage.trim() && this.selectedContact) {
-        // Add the new message to chatMessages array
-        this.chatMessages.push({ sender: this.currentUser.name, text: this.newMessage });
-        this.newMessage = ''; // Clear the input after sending
+        // Add the new message to Firestore
+        const chatRef = collection(db, `chats/${this.currentUser.name}_${this.selectedContact.id}/messages`);
+        await addDoc(chatRef, { sender: this.currentUser.name, text: this.newMessage });
 
-        // Optionally, simulate a response from the contact
-        this.simulateContactResponse(this.selectedContact.name);
+        this.newMessage = ''; // Clear the input after sending
       } else {
         alert('Please enter a message and select a contact!');
       }
     },
     storeChatMessages() {
-      if (this.selectedContact) {
-        console.log(`Storing messages for ${this.selectedContact.name}:`, this.chatMessages);
-        // Here, you can implement logic to persist chat messages to a database or local storage.
-      }
-    },
-    simulateContactResponse(contactName) {
-      // Simulate a response from the contact after a delay
-      setTimeout(() => {
-        this.chatMessages.push({ sender: contactName, text: "Thanks for your message!" });
-      }, 1000); // Adjust the delay as needed
+      // Clear current chat messages before selecting a new contact
+      this.chatMessages = []; // Clear messages for the new contact
     },
   },
 };
