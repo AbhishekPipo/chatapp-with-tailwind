@@ -11,21 +11,21 @@
       </div>
       <ul>
         <li
-          v-for="message in messages"
-          :key="message.id"
-          @click="selectContact(message)"
+          v-for="user in messages"
+          :key="user.id"
+          @click="selectContact(user)"
           class="border-b last:border-b-0 cursor-pointer hover:bg-gray-50"
         >
           <div class="block p-4">
             <div class="flex items-center">
               <img
-                :src="message.avatar"
-                :alt="message.name"
+                :src="user.avatar"
+                :alt="user.name"
                 class="w-10 h-10 rounded-full mr-3"
               />
               <div>
-                <p class="font-semibold">{{ message.name }}</p>
-                <p class="text-sm text-gray-500">{{ message.lastMessage }}</p>
+                <p class="font-semibold">{{ user.name }}</p>
+                <p class="text-sm text-gray-500">{{ user.lastMessage || 'No messages yet' }}</p>
               </div>
             </div>
           </div>
@@ -95,20 +95,20 @@ export default {
         name: 'You', // Simulating logged-in user
         avatar: 'https://via.placeholder.com/40',
       },
-      messages: [], // To store contacts
+      messages: [], // To store users
       chatMessages: [], // To store chat messages
       newMessage: '', // For the new message input
       selectedContact: null, // To store the currently selected contact
     };
   },
   created() {
-    this.loadContacts();
+    this.loadUsers(); // Load users instead of contacts
   },
   methods: {
-    async loadContacts() {
-      // Load contacts from Firestore
-      const contactsRef = collection(db, 'contacts');
-      onSnapshot(contactsRef, (snapshot) => {
+    async loadUsers() {
+      // Load users from Firestore
+      const usersRef = collection(db, 'users'); // Adjust to your Firestore structure
+      onSnapshot(usersRef, (snapshot) => {
         this.messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       });
     },
