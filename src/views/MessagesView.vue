@@ -106,12 +106,16 @@ export default {
   },
   methods: {
     async loadUsers() {
+      // Retrieve user info from localStorage
+      const userData = localStorage.getItem('currentUser');
+      const currentUserName = userData ? JSON.parse(userData).name : null;
+
       // Load users from Firestore
       const usersRef = collection(db, 'users'); // Adjust to your Firestore structure
       onSnapshot(usersRef, (snapshot) => {
         this.messages = snapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(user => user.name !== this.currentUser.name); // Exclude current user
+          .filter(user => user.name !== currentUserName); // Exclude current user
       });
     },
     selectContact(contact) {
