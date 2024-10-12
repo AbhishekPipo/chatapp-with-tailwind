@@ -48,25 +48,26 @@ export default {
     const router = useRouter();
 
     const login = async () => {
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, where('email', '==', username.value)); // Changed to 'email' for better practice
-      const querySnapshot = await getDocs(q);
+  const usersRef = collection(db, 'users');
+  const q = query(usersRef, where('email', '==', username.value));
+  const querySnapshot = await getDocs(q);
 
-      if (!querySnapshot.empty) {
-        const userDoc = querySnapshot.docs[0].data(); // Get the first matching user document
+  if (!querySnapshot.empty) {
+    const userDoc = querySnapshot.docs[0].data();
 
-        // Here, we would normally compare the hashed password from the database.
-        // Since we're using plain text for demonstration purposes, do not do this in production!
-        if (userDoc.password === password.value) {
-          alert('Login successful!');
-          router.push({ name: 'Messages' }); // Adjust route name as necessary
-        } else {
-          alert('Invalid username or password.');
-        }
-      } else {
-        alert('Invalid username or password.');
-      }
-    };
+    if (userDoc.password === password.value) {
+      // Store the user's name in localStorage
+      localStorage.setItem('currentUser', JSON.stringify({ name: userDoc.name })); // Store user info in localStorage
+      alert('Login successful!');
+      router.push({ name: 'Messages' });
+    } else {
+      alert('Invalid username or password.');
+    }
+  } else {
+    alert('Invalid username or password.');
+  }
+};
+
 
     return {
       username,

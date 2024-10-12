@@ -109,7 +109,9 @@ export default {
       // Load users from Firestore
       const usersRef = collection(db, 'users'); // Adjust to your Firestore structure
       onSnapshot(usersRef, (snapshot) => {
-        this.messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        this.messages = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(user => user.name !== this.currentUser.name); // Exclude current user
       });
     },
     selectContact(contact) {
