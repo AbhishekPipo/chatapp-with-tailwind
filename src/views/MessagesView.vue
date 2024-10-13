@@ -92,9 +92,9 @@ export default {
   data() {
     return {
       currentUser: {
-        id: 'currentUserId', // Simulating logged-in user ID
+        id: 'currentUserId', // Replace with actual logged-in user ID
         name: 'You',
-        avatar: 'https://via.placeholder.com/40',
+        avatar: 'https://via.placeholder.com/40', // Replace with actual user avatar
       },
       messages: [], // List of users
       chatMessages: [], // Chat messages
@@ -110,8 +110,8 @@ export default {
       // Retrieve current user data (this example assumes localStorage stores current user)
       const userData = localStorage.getItem('currentUser');
       const currentUserId = userData ? JSON.parse(userData).id : null;
-   console.log(userData, 'current logged in user data');
-   
+      console.log(userData, 'current logged in user data');
+
       // Load users from Firestore
       const usersRef = collection(db, 'users');
       onSnapshot(usersRef, (snapshot) => {
@@ -125,46 +125,68 @@ export default {
       this.loadChatMessages(contact.id); // Load messages for the selected contact
     },
     async loadChatMessages(contactId) {
-      console.log(contactId,"conact id");
-      
-      const chatRef = collection(db, `messages`);
-      onSnapshot(chatRef, (snapshot) => {
-        this.chatMessages = snapshot.docs
-          .map(doc => doc.data())
-          .filter(msg => 
-            (msg.senderId === this.currentUser.id && msg.receiverId === contactId) ||
-            (msg.senderId === contactId && msg.receiverId === this.currentUser.id)
-          );
-      });
-    },
-    async sendMessage() {
-  if (this.newMessage.trim() && this.selectedContact) {
-    // Retrieve the current user data from localStorage
+  console.log('Loading messages for contact ID:', contactId);
+
+  const chatRef = collection(db, 'messages');
+  onSnapshot(chatRef, (snapshot) => {
+    console.log('Snapshot received:', snapshot); // Log the entire snapshot
+
+    // Retrieve current user data from localStorage
     const userData = localStorage.getItem('currentUser');
     const currentUser = userData ? JSON.parse(userData) : null;
 
-    if (currentUser && currentUser.id) {
-      // Add the new message to Firestore
-      const chatRef = collection(db, 'messages');
-      await addDoc(chatRef, {
-        senderId: currentUser.id, // Use the retrieved senderId
-        receiverId: this.selectedContact.id,
-        text: this.newMessage,
-        textTimestamp: serverTimestamp(),
+    if (!currentUser) {
+      console.error('Current user not found in localStorage');
+      return;
+    }
+
+    // Filter messages based on sender and receiver IDs
+    this.chatMessages = snapshot.docs
+      .map(doc => {
+        const data = { ...doc.data(), senderId: currentUser.id }; // Use actual currentUser ID
+        console.log('Message data:', data); // Log each message data
+        return data;
+      })
+      .filter(msg => {
+        const isUserSender = msg.senderId === currentUser.id; // Use currentUser.id here
+        const isContactSender = msg.senderId === contactId;
+        const isMessageForContact = isUserSender && msg.receiverId === contactId;
+        const isMessageFromContact = isContactSender && msg.receiverId === currentUser.id;
+
+        // Log filtering conditions
+        console.log(`Filtering message: ${msg.text}, Is User Sender: ${isUserSender}, Is Contact Sender: ${isContactSender}, Is Message For Contact: ${isMessageForContact}, Is Message From Contact: ${isMessageFromContact}`);
+        
+        return isMessageForContact || isMessageFromContact;
       });
 
-      this.newMessage = ''; // Clear the input after sending
-    } else {
-      alert('Current user not found!');
+    console.log('Filtered chat messages:', this.chatMessages); // Log filtered chat messages
+  });
+},
+
+    async sendMessage() {
+      if (this.newMessage.trim() && this.selectedContact) {
+        // Retrieve the current user data from localStorage
+        const userData = localStorage.getItem('currentUser');
+        const currentUser = userData ? JSON.parse(userData) : null;
+
+        if (currentUser && currentUser.id) {
+          // Add the new message to Firestore
+          const chatRef = collection(db, 'messages');
+          await addDoc(chatRef, {
+            senderId: currentUser.id, // Use the retrieved senderId
+            receiverId: this.selectedContact.id,
+            text: this.newMessage,
+            textTimestamp: serverTimestamp(),
+          });
+
+          this.newMessage = ''; // Clear the input after sending
+        } else {
+          alert('Current user not found!');
+        }
+      } else {
+        alert('Please enter a message and select a contact!');
+      }
     }
-  } else {
-    alert('Please enter a message and select a contact!');
-  }
-}
   },
 };
 </script>
-
-<style scoped>
-/* Additional styles if needed */
-</style>
