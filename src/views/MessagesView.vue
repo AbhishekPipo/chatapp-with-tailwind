@@ -31,22 +31,28 @@
       </ul>
     </div>
 
-    <!-- Message content -->
-    <div class="flex-1 bg-white rounded-lg shadow overflow-hidden flex flex-col">
-      <div class="p-4 border-b flex items-center justify-between">
-        <div class="flex items-center">
-          <div
-            v-if="selectedContact"
-            class="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center mr-3"
-          >
-            {{ selectedContact.name.charAt(0).toUpperCase() }}
-          </div>
-          <h2 class="text-lg font-semibold">{{ selectedContact?.name || 'Select a contact' }}</h2>
+<!-- Message content -->
+<div class="flex-1 bg-white rounded-lg shadow overflow-hidden flex flex-col">
+  <div v-if="!selectedContact" class="flex-1 flex flex-col items-center justify-center text-center">
+    <p class="text-gray-500">Welcome to Floakly Chat App</p>
+    <p class="mt-2 text-gray-400">Start texting your friends and family!</p>
+  </div>
+  <div v-else class="flex-1 flex flex-col">
+    <div class="p-4 border-b flex items-center justify-between">
+      <div class="flex items-center">
+        <div
+          v-if="selectedContact"
+          class="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center mr-3"
+        >
+          {{ selectedContact.name.charAt(0).toUpperCase() }}
         </div>
+        <h2 class="text-lg font-semibold">{{ selectedContact?.name }}</h2>
       </div>
+    </div>
 
-      <!-- Chat messages -->
-      <div class="flex-1 overflow-y-auto p-4">
+    <!-- Chat messages -->
+    <div class="flex-1 overflow-y-auto p-4">
+      <div>
         <div v-for="(msg, index) in chatMessages" :key="index" :class="{'text-right': msg.senderId === currentUser.id}">
           <div class="flex items-start mb-2">
             <div
@@ -63,25 +69,30 @@
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Message input -->
-      <div class="border-t p-4">
-        <div class="flex items-center">
-          <input
-            type="text"
-            v-model="newMessage"
-            placeholder="Type a message..."
-            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg mr-2 focus:outline-none focus:ring focus:ring-blue-300"
-          />
-          <button
-            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-            @click="sendMessage"
-          >
-            Send
-          </button>
-        </div>
+    <!-- Message input -->
+    <div class="border-t p-4">
+      <div class="flex items-center">
+        <input
+          type="text"
+          v-model="newMessage"
+          placeholder="Type a message..."
+          class="flex-1 px-4 py-2 border border-gray-300 rounded-lg mr-2 focus:outline-none focus:ring focus:ring-blue-300"
+        />
+        <button
+          class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          @click="sendMessage"
+        >
+          Send
+        </button>
       </div>
     </div>
+  </div>
+</div>
+
+
+
   </div>
 </template>
 
