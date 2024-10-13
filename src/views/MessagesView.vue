@@ -48,14 +48,14 @@
 
       <!-- Chat messages -->
       <div class="flex-1 overflow-y-auto p-4">
-        <div v-for="(msg, index) in chatMessages" :key="index" :class="{'text-right': msg.sender === currentUser.name}">
+        <div v-for="(msg, index) in chatMessages" :key="index" :class="{'text-right': msg.senderId === currentUser.id}">
           <div class="flex items-start mb-2">
             <img
-              :src="msg.sender === currentUser.name ? currentUser.avatar : selectedContact.avatar"
+              :src="msg.senderId === currentUser.id ? currentUser.avatar : selectedContact.avatar"
               alt="User avatar"
               class="w-8 h-8 rounded-full mr-2"
             />
-            <div :class="msg.sender === currentUser.name ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'">
+            <div :class="msg.senderId === currentUser.id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'">
               <p class="p-2 rounded-lg">{{ msg.text }}</p>
             </div>
           </div>
@@ -85,64 +85,71 @@
 
 <script>
 import { db } from '../firebase'; // Import Firestore
-import { collection, addDoc, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 
 export default {
   name: 'MessagesView',
   data() {
     return {
       currentUser: {
-        name: 'You', // Simulating logged-in user
+        id: 'currentUserId', // Simulating logged-in user ID
+        name: 'You',
         avatar: 'https://via.placeholder.com/40',
       },
-      messages: [], // To store users
-      chatMessages: [], // To store chat messages
-      newMessage: '', // For the new message input
-      selectedContact: null, // To store the currently selected contact
+      messages: [], // List of users
+      chatMessages: [], // Chat messages
+      newMessage: '', // New message input
+      selectedContact: null, // Currently selected contact
     };
   },
   created() {
-    this.loadUsers(); // Load users instead of contacts
+    this.loadUsers(); // Load all users except the current user
   },
   methods: {
     async loadUsers() {
-      // Retrieve user info from localStorage
+      // Retrieve current user data (this example assumes localStorage stores current user)
       const userData = localStorage.getItem('currentUser');
-      const currentUserName = userData ? JSON.parse(userData).name : null;
-
+      const currentUserId = userData ? JSON.parse(userData).id : null;
+   console.log(userData, 'current logged in user data');
+   
       // Load users from Firestore
-      const usersRef = collection(db, 'users'); // Adjust to your Firestore structure
+      const usersRef = collection(db, 'users');
       onSnapshot(usersRef, (snapshot) => {
         this.messages = snapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(user => user.name !== currentUserName); // Exclude current user
+          .filter(user => user.id !== currentUserId); // Exclude current user
       });
     },
     selectContact(contact) {
-      this.storeChatMessages();
       this.selectedContact = contact;
       this.loadChatMessages(contact.id); // Load messages for the selected contact
     },
     async loadChatMessages(contactId) {
-      const chatRef = collection(db, `chats/${this.currentUser.name}_${contactId}/messages`);
+      const chatRef = collection(db, `messages`);
       onSnapshot(chatRef, (snapshot) => {
-        this.chatMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        this.chatMessages = snapshot.docs
+          .map(doc => doc.data())
+          .filter(msg => 
+            (msg.senderId === this.currentUser.id && msg.receiverId === contactId) ||
+            (msg.senderId === contactId && msg.receiverId === this.currentUser.id)
+          );
       });
     },
     async sendMessage() {
       if (this.newMessage.trim() && this.selectedContact) {
         // Add the new message to Firestore
-        const chatRef = collection(db, `chats/${this.currentUser.name}_${this.selectedContact.id}/messages`);
-        await addDoc(chatRef, { sender: this.currentUser.name, text: this.newMessage });
+        const chatRef = collection(db, 'messages');
+        await addDoc(chatRef, {
+          senderId: this.currentUser.id,
+          receiverId: this.selectedContact.id,
+          text: this.newMessage,
+          textTimestamp: serverTimestamp(),
+        });
 
         this.newMessage = ''; // Clear the input after sending
       } else {
         alert('Please enter a message and select a contact!');
       }
-    },
-    storeChatMessages() {
-      // Clear current chat messages before selecting a new contact
-      this.chatMessages = []; // Clear messages for the new contact
     },
   },
 };

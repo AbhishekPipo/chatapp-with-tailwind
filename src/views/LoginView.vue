@@ -54,10 +54,13 @@ export default {
 
   if (!querySnapshot.empty) {
     const userDoc = querySnapshot.docs[0].data();
+    
 
     if (userDoc.password === password.value) {
       // Store the user's name in localStorage
-      localStorage.setItem('currentUser', JSON.stringify({ name: userDoc.name })); // Store user info in localStorage
+      // localStorage.setItem('currentUser', JSON.stringify({ name: userDoc.name })); // Store user info in localStorage
+      localStorage.setItem('currentUser', JSON.stringify(userDoc)); // Store the entire user object in localStorage
+
       alert('Login successful!');
       router.push({ name: 'Messages' });
     } else {
