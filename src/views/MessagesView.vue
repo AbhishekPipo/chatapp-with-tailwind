@@ -125,6 +125,8 @@ export default {
       this.loadChatMessages(contact.id); // Load messages for the selected contact
     },
     async loadChatMessages(contactId) {
+      console.log(contactId,"conact id");
+      
       const chatRef = collection(db, `messages`);
       onSnapshot(chatRef, (snapshot) => {
         this.chatMessages = snapshot.docs
@@ -136,21 +138,29 @@ export default {
       });
     },
     async sendMessage() {
-      if (this.newMessage.trim() && this.selectedContact) {
-        // Add the new message to Firestore
-        const chatRef = collection(db, 'messages');
-        await addDoc(chatRef, {
-          senderId: this.currentUser.id,
-          receiverId: this.selectedContact.id,
-          text: this.newMessage,
-          textTimestamp: serverTimestamp(),
-        });
+  if (this.newMessage.trim() && this.selectedContact) {
+    // Retrieve the current user data from localStorage
+    const userData = localStorage.getItem('currentUser');
+    const currentUser = userData ? JSON.parse(userData) : null;
 
-        this.newMessage = ''; // Clear the input after sending
-      } else {
-        alert('Please enter a message and select a contact!');
-      }
-    },
+    if (currentUser && currentUser.id) {
+      // Add the new message to Firestore
+      const chatRef = collection(db, 'messages');
+      await addDoc(chatRef, {
+        senderId: currentUser.id, // Use the retrieved senderId
+        receiverId: this.selectedContact.id,
+        text: this.newMessage,
+        textTimestamp: serverTimestamp(),
+      });
+
+      this.newMessage = ''; // Clear the input after sending
+    } else {
+      alert('Current user not found!');
+    }
+  } else {
+    alert('Please enter a message and select a contact!');
+  }
+}
   },
 };
 </script>
