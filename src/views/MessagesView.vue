@@ -18,11 +18,9 @@
         >
           <div class="block p-4">
             <div class="flex items-center">
-              <img
-                :src="user.avatar"
-                :alt="user.name"
-                class="w-10 h-10 rounded-full mr-3"
-              />
+              <div class="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center mr-3">
+                {{ user.name.charAt(0).toUpperCase() }}
+              </div>
               <div>
                 <p class="font-semibold">{{ user.name }}</p>
                 <p class="text-sm text-gray-500">{{ user.lastMessage || 'No messages yet' }}</p>
@@ -37,11 +35,12 @@
     <div class="flex-1 bg-white rounded-lg shadow overflow-hidden flex flex-col">
       <div class="p-4 border-b flex items-center justify-between">
         <div class="flex items-center">
-          <img
-            :src="selectedContact?.avatar || 'https://via.placeholder.com/40'"
-            alt="User avatar"
-            class="w-10 h-10 rounded-full mr-3"
-          />
+          <div
+            v-if="selectedContact"
+            class="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center mr-3"
+          >
+            {{ selectedContact.name.charAt(0).toUpperCase() }}
+          </div>
           <h2 class="text-lg font-semibold">{{ selectedContact?.name || 'Select a contact' }}</h2>
         </div>
       </div>
@@ -50,11 +49,14 @@
       <div class="flex-1 overflow-y-auto p-4">
         <div v-for="(msg, index) in chatMessages" :key="index" :class="{'text-right': msg.senderId === currentUser.id}">
           <div class="flex items-start mb-2">
-            <img
-              :src="msg.senderId === currentUser.id ? currentUser.avatar : selectedContact.avatar"
-              alt="User avatar"
-              class="w-8 h-8 rounded-full mr-2"
-            />
+            <div
+              :class="['w-8 h-8 rounded-full flex items-center justify-center mr-2', {
+                'bg-blue-500 text-white': msg.senderId === currentUser.id,
+                'bg-gray-300 text-gray-800': msg.senderId !== currentUser.id,
+              }]"
+            >
+              {{ msg.senderId === currentUser.id ? currentUser.name.charAt(0).toUpperCase() : selectedContact.name.charAt(0).toUpperCase() }}
+            </div>
             <div :class="msg.senderId === currentUser.id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'">
               <p class="p-2 rounded-lg">{{ msg.text }}</p>
             </div>
