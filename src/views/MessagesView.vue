@@ -143,25 +143,24 @@ export default {
     // Filter messages based on sender and receiver IDs
     this.chatMessages = snapshot.docs
       .map(doc => {
-        const data = { ...doc.data(), senderId: currentUser.id }; // Use actual currentUser ID
+        const data = { ...doc.data() };
         console.log('Message data:', data); // Log each message data
         return data;
       })
       .filter(msg => {
-        const isUserSender = msg.senderId === currentUser.id; // Use currentUser.id here
+        const isUserSender = msg.senderId === currentUser.id;
         const isContactSender = msg.senderId === contactId;
-        const isMessageForContact = isUserSender && msg.receiverId === contactId;
-        const isMessageFromContact = isContactSender && msg.receiverId === currentUser.id;
 
-        // Log filtering conditions
-        console.log(`Filtering message: ${msg.text}, Is User Sender: ${isUserSender}, Is Contact Sender: ${isContactSender}, Is Message For Contact: ${isMessageForContact}, Is Message From Contact: ${isMessageFromContact}`);
-        
-        return isMessageForContact || isMessageFromContact;
+        // A message is included if:
+        // - It is sent by the current user to the selected contact
+        // - It is sent by the selected contact to the current user
+        return (isUserSender && msg.receiverId === contactId) || (isContactSender && msg.receiverId === currentUser.id);
       });
 
     console.log('Filtered chat messages:', this.chatMessages); // Log filtered chat messages
   });
 },
+
 
     async sendMessage() {
       if (this.newMessage.trim() && this.selectedContact) {
@@ -170,6 +169,9 @@ export default {
         const currentUser = userData ? JSON.parse(userData) : null;
 
         if (currentUser && currentUser.id) {
+          console.log(this.selectedContact.id,'seleted concat iDD');
+          console.log(currentUser.id,'current user iDD');
+          
           // Add the new message to Firestore
           const chatRef = collection(db, 'messages');
           await addDoc(chatRef, {
