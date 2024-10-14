@@ -36,6 +36,7 @@
       </div>
     </div>
 
+    <!-- Message content -->
     <div class="flex-1 bg-white rounded-lg shadow overflow-hidden flex flex-col">
       <div v-if="!selectedContact" class="flex-1 flex flex-col items-center justify-center text-center">
         <p class="text-gray-500">Welcome to Floakly Chat App</p>
@@ -116,86 +117,88 @@
 </template>
 
 <script>
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { db } from '../firebase';
 import { collection, addDoc, onSnapshot, serverTimestamp, query, orderBy, getDocs } from 'firebase/firestore';
+import { useWebSocket } from '../WebSocketManager';
 
 export default {
   name: 'MessagesView',
-  data() {
-    return {
-      currentUser: {
-        id: 'currentUserId',
-        name: 'You',
-      },
-      messages: [],
-      chatMessages: [],
-      newMessage: '',
-      selectedContact: null,
-      offline: false,
-      searchQuery: '',
-      mutedContacts: new Set(),
-    };
-  },
-  computed: {
-    filteredMessages() {
-      return this.messages.filter(user => 
-        user.name.toLowerCase().includes(this.searchQuery.toLowerCase())
-      );
-    }
-  },
-  created() {
-    this.loadCurrentUser();
-    this.setupNetworkListener();
-    this.loadUsers();
-  },
-  methods: {
-    loadCurrentUser() {
+  setup() {
+    const { socket, isConnected, error } = useWebSocket('wss://ws.jam.dev/graphql');
+
+    const currentUser = ref({
+      id: 'currentUserId',
+      name: 'You',
+    });
+    const messages = ref([]);
+    const chatMessages = ref([]);
+    const newMessage = ref('');
+    const selectedContact = ref(null);
+    const offline = ref(false);
+    const searchQuery = ref('');
+    const mutedContacts = ref(new Set());
+
+    const filteredMessages = computed(() => 
+      messages.value.filter(user => 
+        user.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+      )
+    );
+
+    const loadCurrentUser = () => {
       const userData = localStorage.getItem('currentUser');
       if (userData) {
-        this.currentUser = JSON.parse(userData);
+        currentUser.value = JSON.parse(userData);
       } else {
         console.error('Current user not found in localStorage');
       }
-    },
-    async loadUsers() {
+    };
+
+    const loadUsers = async () => {
       const usersRef = collection(db, 'users');
 
       // Load users from local storage first
       const cachedUsers = JSON.parse(localStorage.getItem('cachedUsers') || '[]');
-      this.messages = cachedUsers.filter(user => user.id !== this.currentUser.id);
+      messages.value = cachedUsers.filter(user => user.id !== currentUser.value.id);
 
       try {
         // Fetch from Firestore and update local storage
         const snapshot = await getDocs(usersRef);
         const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         localStorage.setItem('cachedUsers', JSON.stringify(users));
-        this.messages = users.filter(user => user.id !== this.currentUser.id);
+        messages.value = users.filter(user => user.id !== currentUser.value.id);
 
         // Set up real-time listener
-        onSnapshot(usersRef, (snapshot) => {
+        const unsubscribe = onSnapshot(usersRef, (snapshot) => {
           const updatedUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           localStorage.setItem('cachedUsers', JSON.stringify(updatedUsers));
-          this.messages = updatedUsers.filter(user => user.id !== this.currentUser.id);
+          messages.value = updatedUsers.filter(user => user.id !== currentUser.value.id);
         }, (error) => {
           console.error('Error in real-time listener:', error);
-          this.offline = true;
+          offline.value = true;
+        });
+
+        onUnmounted(() => {
+          unsubscribe();
         });
       } catch (error) {
         console.error('Error fetching users:', error);
-        this.offline = true;
+        offline.value = true;
       }
-    },
-    selectContact(contact) {
-      this.selectedContact = contact;
-      this.loadChatMessages(contact.id);
-    },
-    async loadChatMessages(contactId) {
+    };
+
+    const selectContact = (contact) => {
+      selectedContact.value = contact;
+      loadChatMessages(contact.id);
+    };
+
+    const loadChatMessages = async (contactId) => {
       const chatRef = collection(db, 'messages');
       const q = query(chatRef, orderBy('textTimestamp', 'asc'));
 
       // Load messages from local storage first
       const cachedMessages = JSON.parse(localStorage.getItem(`chatMessages_${contactId}`) || '[]');
-      this.chatMessages = this.filterAndFormatMessages(cachedMessages, contactId);
+      chatMessages.value = filterAndFormatMessages(cachedMessages, contactId);
 
       try {
         // Fetch from Firestore and update local storage
@@ -206,47 +209,53 @@ export default {
           textTimestamp: doc.data().textTimestamp?.toDate(),
         }));
         localStorage.setItem(`chatMessages_${contactId}`, JSON.stringify(messages));
-        this.chatMessages = this.filterAndFormatMessages(messages, contactId);
+        chatMessages.value = filterAndFormatMessages(messages, contactId);
 
         // Set up real-time listener
-        onSnapshot(q, (snapshot) => {
+        const unsubscribe = onSnapshot(q, (snapshot) => {
           const updatedMessages = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data(),
             textTimestamp: doc.data().textTimestamp?.toDate(),
           }));
           localStorage.setItem(`chatMessages_${contactId}`, JSON.stringify(updatedMessages));
-          this.chatMessages = this.filterAndFormatMessages(updatedMessages, contactId);
+          chatMessages.value = filterAndFormatMessages(updatedMessages, contactId);
         }, (error) => {
           console.error('Error in real-time listener for messages:', error);
+        });
+
+        onUnmounted(() => {
+          unsubscribe();
         });
       } catch (error) {
         console.error('Error loading chat messages:', error);
       }
-    },
-    filterAndFormatMessages(messages, contactId) {
+    };
+
+    const filterAndFormatMessages = (messages, contactId) => {
       return messages
         .filter(msg =>
-          (msg.senderId === this.currentUser.id && msg.receiverId === contactId) ||
-          (msg.senderId === contactId && msg.receiverId === this.currentUser.id)
+          (msg.senderId === currentUser.value.id && msg.receiverId === contactId) ||
+          (msg.senderId === contactId && msg.receiverId === currentUser.value.id)
         )
         .map(msg => ({
           ...msg,
           textTimestamp: msg.textTimestamp instanceof Date ? msg.textTimestamp : new Date(msg.textTimestamp),
         }));
-    },
-    async sendMessage() {
-      if (!this.newMessage || !this.selectedContact) return;
+    };
+
+    const sendMessage = async () => {
+      if (!newMessage.value || !selectedContact.value) return;
 
       const newMsg = {
-        senderId: this.currentUser.id,
-        receiverId: this.selectedContact.id,
-        text: this.newMessage,
+        senderId: currentUser.value.id,
+        receiverId: selectedContact.value.id,
+        text: newMessage.value,
         textTimestamp: new Date(),
       };
 
       // Optimistically update UI
-      this.chatMessages.push(newMsg);
+      chatMessages.value.push(newMsg);
 
       try {
         await addDoc(collection(db, 'messages'), {
@@ -255,52 +264,98 @@ export default {
         });
 
         // Update local storage
-        const cachedMessages = JSON.parse(localStorage.getItem(`chatMessages_${this.selectedContact.id}`) || '[]');
+        const cachedMessages = JSON.parse(localStorage.getItem(`chatMessages_${selectedContact.value.id}`) || '[]');
         cachedMessages.push(newMsg);
-        localStorage.setItem(`chatMessages_${this.selectedContact.id}`, JSON.stringify(cachedMessages));
+        localStorage.setItem(`chatMessages_${selectedContact.value.id}`, JSON.stringify(cachedMessages));
 
-        this.newMessage = ''; // Clear input
+        newMessage.value = ''; // Clear input
       } catch (error) {
         console.error('Error sending message:', error);
         // You might want to notify the user that the message wasn't sent
       }
-    },
-    formatMessage(message) {
+    };
+
+    const formatMessage = (message) => {
       return message.replace(/:\)/g, '😊').replace(/:\(/g, '😢');
-    },
-    formatTimestamp(timestamp) {
+    };
+
+    const formatTimestamp = (timestamp) => {
       return timestamp ? timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-    },
-    isMuted(contactId) {
-      return this.mutedContacts.has(contactId);
-    },
-    toggleMute(contactId) {
-      if (this.isMuted(contactId)) {
-        this.mutedContacts.delete(contactId);
+    };
+
+    const isMuted = (contactId) => {
+      return mutedContacts.value.has(contactId);
+    };
+
+    const toggleMute = (contactId) => {
+      if (isMuted(contactId)) {
+        mutedContacts.value.delete(contactId);
       } else {
-        this.mutedContacts.add(contactId);
+        mutedContacts.value.add(contactId);
       }
       // Persist muted contacts to localStorage
-      localStorage.setItem('mutedContacts', JSON.stringify(Array.from(this.mutedContacts)));
-    },
-    setupNetworkListener() {
+      localStorage.setItem('mutedContacts', JSON.stringify(Array.from(mutedContacts.value)));
+    };
+
+    const setupNetworkListener = () => {
       window.addEventListener('online', () => {
-        this.offline = false;
-        this.loadUsers(); // Refresh data when coming back online
+        offline.value = false;
+        loadUsers(); // Refresh data when coming back online
       });
 
       window.addEventListener('offline', () => {
-        this.offline = true;
+        offline.value = true;
       });
 
       // Initial offline status
-      this.offline = !navigator.onLine;
-    },
-  },
-  mounted() {
-    // Load muted contacts from localStorage
-    const savedMutedContacts = JSON.parse(localStorage.getItem('mutedContacts') || '[]');
-    this.mutedContacts = new Set(savedMutedContacts);
-  },
+      offline.value = !navigator.onLine;
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Page is now visible, refresh data
+        loadUsers();
+        if (selectedContact.value) {
+          loadChatMessages(selectedContact.value.id);
+        }
+      }
+    };
+
+    onMounted(() => {
+      loadCurrentUser();
+      setupNetworkListener();
+      loadUsers();
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      // Load muted contacts from localStorage
+      const savedMutedContacts = JSON.parse(localStorage.getItem('mutedContacts') || '[]');
+      mutedContacts.value = new Set(savedMutedContacts);
+    });
+
+    onUnmounted(() => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    });
+
+    return {
+      currentUser,
+      messages,
+      chatMessages,
+      newMessage,
+      selectedContact,
+      offline,
+      searchQuery,
+      mutedContacts,
+      filteredMessages,
+      selectContact,
+      sendMessage,
+      formatMessage,
+      formatTimestamp,
+      isMuted,
+      toggleMute,
+      socket,
+      isConnected,
+      error
+    };
+  }
 };
 </script>
