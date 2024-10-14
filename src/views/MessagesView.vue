@@ -31,74 +31,86 @@
       </ul>
     </div>
 
-<!-- Message content -->
-<div class="flex-1 bg-white rounded-lg shadow overflow-hidden flex flex-col">
-  <div v-if="!selectedContact" class="flex-1 flex flex-col items-center justify-center text-center">
-    <p class="text-gray-500">Welcome to Floakly Chat App</p>
-    <p class="mt-2 text-gray-400">Start texting your friends and family!</p>
-  </div>
-  <div v-else class="flex-1 flex flex-col">
-    <div class="p-4 border-b flex items-center justify-between">
-      <div class="flex items-center">
-        <div
-          v-if="selectedContact"
-          class="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center mr-3"
-        >
-          {{ selectedContact.name.charAt(0).toUpperCase() }}
-        </div>
-        <h2 class="text-lg font-semibold">{{ selectedContact?.name }}</h2>
+    <!-- Message content -->
+    <div class="flex-1 bg-white rounded-lg shadow overflow-hidden flex flex-col">
+      <div v-if="!selectedContact" class="flex-1 flex flex-col items-center justify-center text-center">
+        <p class="text-gray-500">Welcome to Floakly Chat App</p>
+        <p class="mt-2 text-gray-400">Start texting your friends and family!</p>
       </div>
-    </div>
-
-    <!-- Chat messages -->
-    <div class="flex-1 overflow-y-auto p-4">
-      <div>
-        <div v-for="(msg, index) in chatMessages" :key="index" :class="{'text-right': msg.senderId === currentUser.id}">
-          <div class="flex items-start mb-2">
+      <div v-else class="flex-1 flex flex-col">
+        <div class="p-4 border-b flex items-center justify-between">
+          <div class="flex items-center">
             <div
-              :class="['w-8 h-8 rounded-full flex items-center justify-center mr-2', {
-                'bg-blue-500 text-white': msg.senderId === currentUser.id,
-                'bg-gray-300 text-gray-800': msg.senderId !== currentUser.id,
-              }]"
+              class="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center mr-3"
             >
-              {{ msg.senderId === currentUser.id ? currentUser.name.charAt(0).toUpperCase() : selectedContact.name.charAt(0).toUpperCase() }}
+              {{ selectedContact.name.charAt(0).toUpperCase() }}
             </div>
-            <div :class="msg.senderId === currentUser.id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'">
-              <p class="p-2 rounded-lg">{{ msg.text }}</p>
+            <h2 class="text-lg font-semibold">{{ selectedContact?.name }}</h2>
+          </div>
+        </div>
+
+        <!-- Chat messages -->
+        <div class="flex-1 overflow-y-auto p-4">
+          <div>
+            <div 
+              v-for="(msg, index) in chatMessages" 
+              :key="index" 
+              :class="{'flex justify-end': msg.senderId === currentUser.id, 'flex justify-start': msg.senderId !== currentUser.id}"
+              class="mb-4 items-end"
+            >
+              <div 
+                v-if="msg.senderId !== currentUser.id"
+                class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center mr-2"
+              >
+                {{ selectedContact.name.charAt(0).toUpperCase() }}
+              </div>
+              <div 
+                :class="[
+                  'max-w-[70%] rounded-lg p-3', 
+                  msg.senderId === currentUser.id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'
+                ]"
+              >
+                <p>{{ msg.text }}</p>
+                <span class="text-xs opacity-75 block mt-1">
+                  {{ formatTimestamp(msg.textTimestamp) }}
+                </span>
+              </div>
+              <div 
+                v-if="msg.senderId === currentUser.id"
+                class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center ml-2"
+              >
+                {{ currentUser.name.charAt(0).toUpperCase() }}
+              </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Message input -->
+        <div class="border-t p-4">
+          <div class="flex items-center">
+            <input
+              type="text"
+              v-model="newMessage"
+              placeholder="Type a message..."
+              class="flex-1 px-4 py-2 border border-gray-300 rounded-lg mr-2 focus:outline-none focus:ring focus:ring-blue-300"
+              @keyup.enter="sendMessage"
+            />
+            <button
+              class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              @click="sendMessage"
+            >
+              Send
+            </button>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- Message input -->
-    <div class="border-t p-4">
-      <div class="flex items-center">
-        <input
-          type="text"
-          v-model="newMessage"
-          placeholder="Type a message..."
-          class="flex-1 px-4 py-2 border border-gray-300 rounded-lg mr-2 focus:outline-none focus:ring focus:ring-blue-300"
-        />
-        <button
-          class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-          @click="sendMessage"
-        >
-          Send
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-
   </div>
 </template>
 
 <script>
 import { db } from '../firebase'; // Import Firestore
-import { collection, addDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, serverTimestamp, query, orderBy } from 'firebase/firestore';
 
 export default {
   name: 'MessagesView',
@@ -117,90 +129,69 @@ export default {
   },
   created() {
     this.loadUsers(); // Load all users except the current user
+    this.loadCurrentUser(); // Load current user data
   },
   methods: {
-    async loadUsers() {
-      // Retrieve current user data (this example assumes localStorage stores current user)
+    loadCurrentUser() {
       const userData = localStorage.getItem('currentUser');
-      const currentUserId = userData ? JSON.parse(userData).id : null;
-      console.log(userData, 'current logged in user data');
-
-      // Load users from Firestore
+      if (userData) {
+        this.currentUser = JSON.parse(userData);
+      } else {
+        console.error('Current user not found in localStorage');
+      }
+    },
+    async loadUsers() {
       const usersRef = collection(db, 'users');
       onSnapshot(usersRef, (snapshot) => {
         this.messages = snapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(user => user.id !== currentUserId); // Exclude current user
+          .filter(user => user.id !== this.currentUser.id); // Exclude current user
       });
     },
     selectContact(contact) {
       this.selectedContact = contact;
-      this.loadChatMessages(contact.id); // Load messages for the selected contact
+      this.loadChatMessages(contact.id);
     },
     async loadChatMessages(contactId) {
-  console.log('Loading messages for contact ID:', contactId);
-
-  const chatRef = collection(db, 'messages');
-  onSnapshot(chatRef, (snapshot) => {
-    console.log('Snapshot received:', snapshot); // Log the entire snapshot
-
-    // Retrieve current user data from localStorage
-    const userData = localStorage.getItem('currentUser');
-    const currentUser = userData ? JSON.parse(userData) : null;
-
-    if (!currentUser) {
-      console.error('Current user not found in localStorage');
-      return;
-    }
-
-    // Filter messages based on sender and receiver IDs
-    this.chatMessages = snapshot.docs
-      .map(doc => {
-        const data = { ...doc.data() };
-        console.log('Message data:', data); // Log each message data
-        return data;
-      })
-      .filter(msg => {
-        const isUserSender = msg.senderId === currentUser.id;
-        const isContactSender = msg.senderId === contactId;
-
-        // A message is included if:
-        // - It is sent by the current user to the selected contact
-        // - It is sent by the selected contact to the current user
-        return (isUserSender && msg.receiverId === contactId) || (isContactSender && msg.receiverId === currentUser.id);
+      const chatRef = collection(db, 'messages');
+      const q = query(chatRef, orderBy('textTimestamp', 'asc'));
+      
+      onSnapshot(q, (snapshot) => {
+        this.chatMessages = snapshot.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            textTimestamp: doc.data().textTimestamp?.toDate()
+          }))
+          .filter(msg => 
+            (msg.senderId === this.currentUser.id && msg.receiverId === contactId) || 
+            (msg.senderId === contactId && msg.receiverId === this.currentUser.id)
+          );
       });
-
-    console.log('Filtered chat messages:', this.chatMessages); // Log filtered chat messages
-  });
-},
-
-
+    },
     async sendMessage() {
       if (this.newMessage.trim() && this.selectedContact) {
-        // Retrieve the current user data from localStorage
-        const userData = localStorage.getItem('currentUser');
-        const currentUser = userData ? JSON.parse(userData) : null;
-
-        if (currentUser && currentUser.id) {
-          console.log(this.selectedContact.id,'seleted concat iDD');
-          console.log(currentUser.id,'current user iDD');
-          
-          // Add the new message to Firestore
+        try {
           const chatRef = collection(db, 'messages');
           await addDoc(chatRef, {
-            senderId: currentUser.id, // Use the retrieved senderId
+            senderId: this.currentUser.id,
             receiverId: this.selectedContact.id,
             text: this.newMessage,
             textTimestamp: serverTimestamp(),
           });
 
           this.newMessage = ''; // Clear the input after sending
-        } else {
-          alert('Current user not found!');
+        } catch (error) {
+          console.error('Error sending message:', error);
+          alert('Failed to send message. Please try again.');
         }
       } else {
         alert('Please enter a message and select a contact!');
       }
+    },
+    formatTimestamp(timestamp) {
+      if (!timestamp) return '';
+      return new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     }
   },
 };
