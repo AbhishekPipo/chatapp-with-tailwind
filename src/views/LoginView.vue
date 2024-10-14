@@ -30,6 +30,15 @@
           Login
         </button>
       </form>
+      
+      <div class="mt-6 text-center">
+        <button
+          @click="googleSignIn"
+          class="w-full bg-red-600 text-white rounded-md py-2 hover:bg-red-700"
+        >
+          Sign in with Google
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -39,6 +48,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { db } from '../firebase'; // Import Firestore
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth'; // Import Firebase Auth and Google provider
 
 export default {
   name: 'LoginComponent',
@@ -48,34 +58,56 @@ export default {
     const router = useRouter();
 
     const login = async () => {
-  const usersRef = collection(db, 'users');
-  const q = query(usersRef, where('email', '==', username.value));
-  const querySnapshot = await getDocs(q);
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('email', '==', username.value));
+      const querySnapshot = await getDocs(q);
 
-  if (!querySnapshot.empty) {
-    const userDoc = querySnapshot.docs[0].data();
-    
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0].data();
 
-    if (userDoc.password === password.value) {
-      // Store the user's name in localStorage
-      // localStorage.setItem('currentUser', JSON.stringify({ name: userDoc.name })); // Store user info in localStorage
-      localStorage.setItem('currentUser', JSON.stringify(userDoc)); // Store the entire user object in localStorage
+        if (userDoc.password === password.value) {
+          // Store the user's name in localStorage
+          localStorage.setItem('currentUser', JSON.stringify(userDoc)); // Store the entire user object in localStorage
+          alert('Login successful!');
+          router.push({ name: 'Messages' });
+        } else {
+          alert('Invalid username or password.');
+        }
+      } else {
+        alert('Invalid username or password.');
+      }
+    };
 
-      alert('Login successful!');
-      router.push({ name: 'Messages' });
-    } else {
-      alert('Invalid username or password.');
-    }
-  } else {
-    alert('Invalid username or password.');
-  }
-};
+    const googleSignIn = async () => {
+      const auth = getAuth();
+      const provider = new GoogleAuthProvider();
 
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        const userData = {
+          name: user.displayName,
+          email: user.email,
+          photoURL: user.photoURL,
+          uid: user.uid,
+        };
+
+        // Store user data in localStorage
+        localStorage.setItem('currentUser', JSON.stringify(userData));
+
+        alert('Google sign-in successful!');
+        router.push({ name: 'Messages' });
+      } catch (error) {
+        console.error('Google sign-in failed:', error.message);
+        alert('Google sign-in failed. Please try again.');
+      }
+    };
 
     return {
       username,
       password,
       login,
+      googleSignIn,
     };
   },
 };
