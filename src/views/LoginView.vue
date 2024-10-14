@@ -46,8 +46,8 @@
 <script>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { db } from '../firebase'; // Import Firestore
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../firebase'; // Import Firestore instance
+import { collection, query, where, getDocs, doc, setDoc, getDoc } from 'firebase/firestore'; // Import Firestore methods
 import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth'; // Import Firebase Auth and Google provider
 
 export default {
@@ -57,6 +57,7 @@ export default {
     const password = ref('');
     const router = useRouter();
 
+    // Normal email/password login
     const login = async () => {
       const usersRef = collection(db, 'users');
       const q = query(usersRef, where('email', '==', username.value));
@@ -66,8 +67,8 @@ export default {
         const userDoc = querySnapshot.docs[0].data();
 
         if (userDoc.password === password.value) {
-          // Store the user's name in localStorage
-          localStorage.setItem('currentUser', JSON.stringify(userDoc)); // Store the entire user object in localStorage
+          // Store user in localStorage
+          localStorage.setItem('currentUser', JSON.stringify(userDoc));
           alert('Login successful!');
           router.push({ name: 'Messages' });
         } else {
@@ -78,23 +79,43 @@ export default {
       }
     };
 
+    // Google SSO login
     const googleSignIn = async () => {
       const auth = getAuth();
       const provider = new GoogleAuthProvider();
 
       try {
+        // Sign in with Google
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
+
+        // Prepare user data
         const userData = {
-          name: user.displayName,
           email: user.email,
-          photoURL: user.photoURL,
-          uid: user.uid,
+          id: user.uid, // Firebase UID
+          name: user.displayName,
+          password: 'admin@123', // Default password, can be omitted
+          URL: '', // Placeholder for user URL
+          description: '', // Placeholder for user description
         };
+
+        // Reference to the user's document in Firestore
+        const userDocRef = doc(db, 'users', user.uid);
+
+        // Check if the user already exists in Firestore
+        const userDocSnap = await getDoc(userDocRef);
+        if (!userDocSnap.exists()) {
+          // If user doesn't exist, create the document in Firestore
+          await setDoc(userDocRef, userData);
+          console.log('New user document created in Firestore.');
+        } else {
+          console.log('User document already exists in Firestore.');
+        }
 
         // Store user data in localStorage
         localStorage.setItem('currentUser', JSON.stringify(userData));
 
+        // Redirect to the Messages page
         alert('Google sign-in successful!');
         router.push({ name: 'Messages' });
       } catch (error) {
@@ -114,5 +135,5 @@ export default {
 </script>
 
 <style scoped>
-/* Additional styles if needed */
+/* Add any additional styles if needed */
 </style>
