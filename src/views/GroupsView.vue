@@ -35,8 +35,8 @@
             <div class="p-4">
               <!-- Group Header -->
               <div class="flex items-center gap-4 mb-4">
-                <div class="w-12 h-12 rounded-full flex items-center justify-center" :class="group.bgColor">
-                  <span class="text-white text-xl font-bold">{{ group.name[0] }}</span>
+                <div class="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center">
+                  <span class="text-white text-xl font-bold">{{ group.name[0].toUpperCase() }}</span> <!-- First letter of the group name -->
                 </div>
                 <div>
                   <h3 class="font-semibold text-lg">{{ group.name }}</h3>
