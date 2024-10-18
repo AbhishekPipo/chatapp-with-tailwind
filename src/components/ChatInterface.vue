@@ -20,7 +20,9 @@
 
     <!-- Chat Body -->
     <div class="flex-1 p-4 overflow-y-auto space-y-4">
-      <div v-for="(message, index) in messages" :key="index" class="flex">
+      <div v-for="(message, index) in messages" :key="index" class="flex flex-col">
+        <!-- Display the sender's name above the message -->
+        <p :class="[messageClass(message), 'text-xs text-gray-600']">{{ message.sender }}</p>
         <div :class="[messageClass(message), 'max-w-xs lg:max-w-md']">
           <div class="bg-blue-100 text-blue-900 rounded-lg p-3 shadow-md">
             <p class="text-sm">{{ message.content }}</p>
@@ -120,17 +122,11 @@ export default {
 /* Adjust chat UI based on the message sender */
 .self-start {
   align-self: flex-start;
-}
-
-.self-end {
-  align-self: flex-end;
-
-}
-.self-start {
   margin-right: auto;
 }
 
 .self-end {
+  align-self: flex-end;
   margin-left: auto;
 }
 
