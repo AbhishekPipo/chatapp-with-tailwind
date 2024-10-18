@@ -20,15 +20,11 @@
 
     <!-- Chat Body -->
     <div class="flex-1 p-4 overflow-y-auto space-y-4">
-      <div
-        v-for="(message, index) in messages"
-        :key="index"
-        :class="['flex', message.user === currentUser ? 'justify-end' : 'justify-start']"
-      >
-        <div class="w-auto max-w-md">
-          <div :class="[message.user === currentUser ? 'bg-blue-500 text-white' : 'bg-blue-100 text-blue-900', 'rounded-lg p-3 shadow-md']">
-            <p class="text-sm">{{ message.text }}</p>
-            <p class="text-xs text-right text-gray-500">{{ formatDate(message.timestamp) }}</p>
+      <div v-for="(message, index) in messages" :key="index" :class="messageClass(message)">
+        <div class="flex max-w-xs lg:max-w-md">
+          <div class="bg-blue-100 text-blue-900 rounded-lg p-3 shadow-md">
+            <p class="text-sm">{{ message.content }}</p>
+            <p class="text-xs text-right text-gray-500">{{ message.time }}</p>
           </div>
         </div>
       </div>
@@ -45,13 +41,18 @@
           @keyup.enter="sendMessage"
         />
         <button @click="sendMessage" class="ml-4 bg-blue-500 text-white px-4 py-2 rounded-lg">
-          <i class="fas fa-paper-plane">SEND</i>
+          <i class="fas fa-paper-plane"></i>
+          SEND
         </button>
       </div>
     </div>
   </div>
 </template>
+
 <script>
+import { collection, addDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/firebase';
+
 export default {
   name: 'ChatInterface',
   props: {
@@ -60,35 +61,44 @@ export default {
   data() {
     return {
       newMessage: '',
-      currentUser: 'user1', // Simulate current user, replace with actual user data
-      messages: [
-        // Sample messages
-        { user: 'user1', text: 'Hey, how are you?', timestamp: new Date() },
-        { user: 'user2', text: 'I’m good, what about you?', timestamp: new Date() },
-        { user: 'user1', text: 'Doing great! Thanks for asking.', timestamp: new Date() },
-      ]
+      currentUser: {}, // Placeholder for current user data
+      messages: [] // Will be populated with messages from Firestore
     };
   },
   methods: {
     messageClass(message) {
-      return message.user === this.currentUser
+      return message.senderId === this.currentUser.id
         ? 'self-end' // Align messages from the current user to the right
         : 'self-start'; // Align messages from other users to the left
     },
-    sendMessage() {
+    async sendMessage() {
       if (this.newMessage.trim() !== '') {
-        this.messages.push({
-          user: this.currentUser,
-          text: this.newMessage,
-          timestamp: new Date()
-        });
-        this.newMessage = '';
-        this.scrollToBottom();
+        // Send message to Firestore
+        try {
+          await addDoc(collection(db, 'GroupMessages', this.group.id, 'messages'), {
+            sender: this.currentUser.name,
+            senderId: this.currentUser.id,
+            content: this.newMessage,
+            timestamp: serverTimestamp(),
+            time: new Date().toLocaleTimeString() // For display purposes
+          });
+          this.newMessage = ''; // Clear input field
+        } catch (error) {
+          console.error('Error sending message: ', error);
+        }
       }
     },
     formatDate(timestamp) {
       const date = new Date(timestamp);
       return `${date.getHours()}:${date.getMinutes()}`;
+    },
+    // Function to listen for real-time updates from Firestore
+    listenForMessages() {
+      const messagesRef = collection(db, 'GroupMessages', this.group.id, 'messages');
+      onSnapshot(messagesRef, (snapshot) => {
+        this.messages = snapshot.docs.map(doc => doc.data());
+        this.scrollToBottom(); // Scroll to bottom after loading messages
+      });
     },
     scrollToBottom() {
       this.$nextTick(() => {
@@ -96,6 +106,16 @@ export default {
         chatBody.scrollTop = chatBody.scrollHeight;
       });
     }
+  },
+  mounted() {
+    // Fetch current user from localStorage
+    const storedUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (storedUser) {
+      this.currentUser = storedUser; // Set current user from localStorage
+    }
+
+    // Fetch messages in real-time when the component is mounted
+    this.listenForMessages();
   }
 };
 </script>
