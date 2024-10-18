@@ -1,133 +1,121 @@
 <template>
-  <div class="flex h-screen bg-gray-50">
-    <!-- Main Chat Area -->
-    <div class="flex-1 flex flex-col">
-      <!-- Header -->
-      <div class="h-16 border-b flex items-center px-4 justify-between bg-white">
+  <div class="flex flex-col h-full bg-white">
+    <!-- Chat Header -->
+    <div class="flex items-center justify-between p-4 border-b bg-gray-100">
+      <div class="flex items-center gap-4">
+        <button @click="$emit('back')" class="text-blue-500">
+          <i class="fas fa-arrow-left"></i>
+        </button>
         <div class="flex items-center gap-2">
-          <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-            <span class="text-white font-bold">G</span> <!-- Indicating Group -->
+          <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
+            <span class="text-white text-lg font-bold">{{ group.name[0].toUpperCase() }}</span>
           </div>
           <div>
-            <h1 class="font-semibold">{{ chatTitle }}</h1>
-            <p class="text-sm text-gray-500">{{ typingStatus }}</p>
-          </div>
-        </div>
-        <div class="flex gap-4">
-          <button class="p-2"><i class="fas fa-video text-gray-600"></i></button>
-          <button class="p-2"><i class="fas fa-phone text-gray-600"></i></button>
-          <button class="p-2"><i class="fas fa-comment text-gray-600"></i></button>
-        </div>
-      </div>
-
-      <!-- Messages -->
-      <div class="flex-1 overflow-y-auto p-4">
-        <div class="text-center text-sm text-gray-500 mb-4">Today, {{ currentDate }}</div>
-        
-        <div v-for="message in messages" :key="message.id" class="flex gap-3 mb-4" :class="{'justify-end': message.sender === 'You'}">
-          <div class="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0" v-if="message.sender !== 'You'"></div>
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="font-medium">{{ message.sender }}</span>
-              <span class="text-sm text-gray-500">{{ message.time }}</span>
-            </div>
-            <p class="bg-white p-3 rounded-lg shadow-sm max-w-md mt-1">{{ message.content }}</p>
-            <img v-if="message.imageUrl" :src="message.imageUrl" alt="Attachment" class="rounded-lg border shadow-sm mt-2 max-w-md"/>
-          </div>
-        </div>
-      </div>
-
-      <!-- Input Area -->
-      <div class="p-4 border-t bg-white">
-        <div class="flex items-center gap-2 bg-gray-100 rounded-lg p-2">
-          <input
-            type="text"
-            placeholder="Add a comment..."
-            class="flex-1 bg-transparent outline-none px-2"
-            v-model="newMessage"
-          />
-          <input type="file" @change="uploadImage" class="hidden" ref="fileInput" />
-          <div class="flex gap-2">
-            <button @click="triggerFileInput" class="p-2 hover:bg-gray-200 rounded-full">
-              <i class="fas fa-image text-gray-600"></i>
-            </button>
-            <button @click="sendMessage" class="p-2 hover:bg-gray-200 rounded-full">
-              <i class="fas fa-paper-plane text-gray-600"></i>
-            </button>
+            <h3 class="font-semibold">{{ group.name }}</h3>
+            <p class="text-sm text-gray-500">{{ group.members.length }} members</p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Right Sidebar (Members and Attachments Sections) -->
-    <!-- Omitted for brevity -->
+    <!-- Chat Body -->
+    <div class="flex-1 p-4 overflow-y-auto space-y-4">
+      <div
+        v-for="(message, index) in messages"
+        :key="index"
+        :class="['flex', message.user === currentUser ? 'justify-end' : 'justify-start']"
+      >
+        <div class="w-auto max-w-md">
+          <div :class="[message.user === currentUser ? 'bg-blue-500 text-white' : 'bg-blue-100 text-blue-900', 'rounded-lg p-3 shadow-md']">
+            <p class="text-sm">{{ message.text }}</p>
+            <p class="text-xs text-right text-gray-500">{{ formatDate(message.timestamp) }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Input -->
+    <div class="p-4 border-t bg-gray-100">
+      <div class="flex items-center">
+        <input
+          v-model="newMessage"
+          type="text"
+          placeholder="Type a message..."
+          class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @keyup.enter="sendMessage"
+        />
+        <button @click="sendMessage" class="ml-4 bg-blue-500 text-white px-4 py-2 rounded-lg">
+          <i class="fas fa-paper-plane">SEND</i>
+        </button>
+      </div>
+    </div>
   </div>
 </template>
-
 <script>
-import { db, storage } from '../firebase'; // Ensure you have this path correctly
-import { collection, query, orderBy, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-
 export default {
   name: 'ChatInterface',
+  props: {
+    group: Object
+  },
   data() {
     return {
-      chatTitle: 'Group Chat', // Change for group chat
-      typingStatus: 'Typing...',
-      currentDate: new Date().toLocaleDateString(),
       newMessage: '',
-      messages: [], // Will be dynamically loaded
-      chatId: 'exampleGroupId', // Set dynamically based on active group chat
-      imageFile: null
+      currentUser: 'user1', // Simulate current user, replace with actual user data
+      messages: [
+        // Sample messages
+        { user: 'user1', text: 'Hey, how are you?', timestamp: new Date() },
+        { user: 'user2', text: 'I’m good, what about you?', timestamp: new Date() },
+        { user: 'user1', text: 'Doing great! Thanks for asking.', timestamp: new Date() },
+      ]
     };
   },
-  mounted() {
-    this.loadGroupMessages();
-  },
   methods: {
-    async loadGroupMessages() {
-      const messagesRef = collection(db, 'groupMessages'); // Changed to groupMessages
-      const q = query(messagesRef, orderBy('timestamp', 'asc')); // Adjusted to load group messages
-      onSnapshot(q, (snapshot) => {
-        this.messages = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-      });
+    messageClass(message) {
+      return message.user === this.currentUser
+        ? 'self-end' // Align messages from the current user to the right
+        : 'self-start'; // Align messages from other users to the left
     },
-    async sendMessage() {
-      if (this.newMessage.trim() === '' && !this.imageFile) return;
-
-      let imageUrl = '';
-      if (this.imageFile) {
-        const storageRef = ref(storage, `groupChats/${this.chatId}/${Date.now()}_${this.imageFile.name}`);
-        const uploadResult = await uploadBytes(storageRef, this.imageFile);
-        imageUrl = await getDownloadURL(uploadResult.ref);
-        this.imageFile = null;
+    sendMessage() {
+      if (this.newMessage.trim() !== '') {
+        this.messages.push({
+          user: this.currentUser,
+          text: this.newMessage,
+          timestamp: new Date()
+        });
+        this.newMessage = '';
+        this.scrollToBottom();
       }
-
-      const messageData = {
-        sender: 'You', // Replace with actual user logic
-        content: this.newMessage,
-        imageUrl,
-        timestamp: serverTimestamp(),
-        time: new Date().toLocaleTimeString()
-      };
-
-      await addDoc(collection(db, 'groupMessages'), messageData); // Adjusted to add to groupMessages
-      this.newMessage = '';
     },
-    triggerFileInput() {
-      this.$refs.fileInput.click();
+    formatDate(timestamp) {
+      const date = new Date(timestamp);
+      return `${date.getHours()}:${date.getMinutes()}`;
     },
-    uploadImage(event) {
-      this.imageFile = event.target.files[0];
+    scrollToBottom() {
+      this.$nextTick(() => {
+        const chatBody = this.$el.querySelector('.overflow-y-auto');
+        chatBody.scrollTop = chatBody.scrollHeight;
+      });
     }
   }
 };
 </script>
 
 <style scoped>
-/* Add any additional custom styles here */
+/* Adjust chat UI based on the message sender */
+.self-start {
+  align-self: flex-start;
+}
+
+.self-end {
+  align-self: flex-end;
+}
+
+/* Styling for message bubbles */
+.bg-blue-100 {
+  background-color: #ebf8ff;
+}
+
+.text-blue-900 {
+  color: #2b6cb0;
+}
 </style>

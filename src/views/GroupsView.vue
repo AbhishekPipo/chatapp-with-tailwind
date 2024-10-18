@@ -67,7 +67,7 @@
     </div>
 
     <!-- Chat Interface -->
-    <ChatInterface v-else :group="selectedGroup" @back="selectedGroup = null" />
+    <ChatInterface v-else :group="selectedGroup" class="w-full" @back="selectedGroup = null" />
   </div>
 </template>
 
