@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Messages from '../views/MessagesView.vue'
 import LoginView from '@/views/LoginView.vue'
 import GroupsView from '@/views/GroupsView.vue'
+import CreateGroup from '@/components/CreateGroup.vue'
 
 const routes = [
   {
@@ -19,7 +20,12 @@ const routes = [
     name: 'Groups',
     component: GroupsView
     // Add the GroupsView component here
-  }
+  },
+  {
+    path: '/create-group',
+    name: 'CreateGroup',
+    component: CreateGroup
+  },
   // Add more routes here
 ]
 

@@ -6,10 +6,13 @@
           <!-- Header -->
           <div class="flex justify-between items-center mb-8">
             <h1 class="text-2xl font-bold">Your Groups</h1>
-            <button class="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center gap-2">
-              <i class="fas fa-plus"></i>
-              Create New Group
-            </button>
+            <button 
+  @click="$router.push('/create-group')" 
+  class="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+>
+  <i class="fas fa-plus"></i>
+  Create New Group
+</button>
           </div>
   
           <!-- Search Bar -->
