@@ -20,8 +20,8 @@
 
     <!-- Chat Body -->
     <div class="flex-1 p-4 overflow-y-auto space-y-4">
-      <div v-for="(message, index) in messages" :key="index" :class="messageClass(message)">
-        <div class="flex max-w-xs lg:max-w-md">
+      <div v-for="(message, index) in messages" :key="index" class="flex">
+        <div :class="[messageClass(message), 'max-w-xs lg:max-w-md']">
           <div class="bg-blue-100 text-blue-900 rounded-lg p-3 shadow-md">
             <p class="text-sm">{{ message.content }}</p>
             <p class="text-xs text-right text-gray-500">{{ message.time }}</p>
@@ -88,10 +88,6 @@ export default {
         }
       }
     },
-    formatDate(timestamp) {
-      const date = new Date(timestamp);
-      return `${date.getHours()}:${date.getMinutes()}`;
-    },
     // Function to listen for real-time updates from Firestore
     listenForMessages() {
       const messagesRef = collection(db, 'GroupMessages', this.group.id, 'messages');
@@ -128,6 +124,14 @@ export default {
 
 .self-end {
   align-self: flex-end;
+
+}
+.self-start {
+  margin-right: auto;
+}
+
+.self-end {
+  margin-left: auto;
 }
 
 /* Styling for message bubbles */
