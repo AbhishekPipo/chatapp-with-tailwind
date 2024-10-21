@@ -8,11 +8,11 @@
         </button>
         <div class="flex items-center gap-2">
           <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
-            <span class="text-white text-lg font-bold">{{ group.name[0].toUpperCase() }}</span>
+            <span class="text-white text-lg font-bold">{{ groupData.name[0].toUpperCase() }}</span>
           </div>
           <div>
-            <h3 class="font-semibold">{{ group.name }}</h3>
-            <p class="text-sm text-gray-500">{{ group.members.length }} members</p>
+            <h3 class="font-semibold">{{ groupData.name }}</h3>
+            <p class="text-sm text-gray-500">{{ groupData.members.length }} members</p>
           </div>
         </div>
       </div>
@@ -117,7 +117,9 @@ export default {
       currentUser: {}, // Will be populated from localStorage
       messages: [], // Will contain messages with their IDs
       file: null,
-      isLikeAnimating: false
+      isLikeAnimating: false,
+      groupData: { ...this.group }, // Create a copy of the group object
+
     };
   },
   methods: {
@@ -237,6 +239,17 @@ export default {
     this.scrollToBottom(); // Scroll to bottom after loading messages
   });
 },
+listenForGroupMembers() {
+    const groupRef = doc(db, 'Groups', this.group.id); // Fetch group document by ID
+    onSnapshot(groupRef, (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const groupData = docSnapshot.data();
+        this.groupData.members = groupData.members || []; // Update the local copy of members
+      } else {
+        console.error('Group document does not exist');
+      }
+    });
+  },
 
     scrollToBottom() {
       this.$nextTick(() => {
@@ -248,6 +261,7 @@ export default {
   mounted() {
     this.currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
     this.listenForMessages();
+    this.listenForGroupMembers(); // Listen for changes in group members
   }
 };
 </script>
