@@ -82,10 +82,14 @@
         />
         <input
           type="file"
+          ref="fileInput"
           @change="onFileChange"
           accept="image/*,video/*"
-          class="ml-2"
+          class="hidden"
         />
+        <button @click="triggerFileInput" class="ml-2 text-gray-500">
+          <i class="fas fa-link"></i> <!-- Chain icon -->
+        </button>
         <button @click="sendMessage" class="ml-4 bg-blue-500 text-white px-4 py-2 rounded-lg">
           <i class="fas fa-paper-plane"></i>
           SEND
@@ -94,7 +98,6 @@
     </div>
   </div>
 </template>
-
 <script>
 import { collection, addDoc, onSnapshot, serverTimestamp, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase';
@@ -123,6 +126,9 @@ export default {
         ? 'self-end'
         : 'self-start';
     },
+    triggerFileInput() {
+    this.$refs.fileInput.click(); // Programmatically click the hidden file input
+  },
     
     isLiked(message) {
       return message.likedBy?.includes(this.currentUser.id) || false;
