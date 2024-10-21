@@ -37,8 +37,32 @@
             </p>
             <p class="text-xs text-right text-gray-500">{{ message.time }}</p>
             <div class="flex items-center justify-between mt-2">
-              <button @click="likeMessage(message)" class="text-blue-500">Like</button>
-              <span class="text-xs text-gray-500">{{ message.likes || 0 }} likes</span>
+              <button 
+                @click="toggleLike(message)" 
+                class="flex items-center gap-1 focus:outline-none"
+                :class="{ 'like-animation': isLikeAnimating }"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  :class="[
+                    'w-5 h-5 transition-all duration-200 ease-in-out',
+                    isLiked(message) ? 'text-red-500 fill-current' : 'text-gray-500'
+                  ]"
+                  viewBox="0 0 24 24"
+                  :fill="isLiked(message) ? 'currentColor' : 'none'"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path 
+                    stroke-linecap="round" 
+                    stroke-linejoin="round" 
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                  />
+                </svg>
+                <span :class="{'text-red-500': isLiked(message)}" class="text-sm">
+                  {{ message.likes || 0 }}
+                </span>
+              </button>
             </div>
           </div>
         </div>
@@ -89,6 +113,7 @@ export default {
       currentUser: {}, // Will be populated from localStorage
       messages: [], // Will contain messages with their IDs
       file: null,
+      isLikeAnimating: false
     };
   },
   methods: {
@@ -97,6 +122,41 @@ export default {
         ? 'self-end'
         : 'self-start';
     },
+    
+    isLiked(message) {
+      return message.likedBy?.includes(this.currentUser.id) || false;
+    },
+
+    async toggleLike(message) {
+      if (!message.id) {
+        console.error('Message ID is missing');
+        return;
+      }
+
+      const messageRef = doc(db, 'GroupMessages', this.group.id, 'messages', message.id);
+      const isCurrentlyLiked = this.isLiked(message);
+
+      try {
+        // Start animation
+        this.isLikeAnimating = true;
+        
+        await updateDoc(messageRef, {
+          likes: (message.likes || 0) + (isCurrentlyLiked ? -1 : 1),
+          likedBy: isCurrentlyLiked
+            ? (message.likedBy || []).filter(id => id !== this.currentUser.id)
+            : [...(message.likedBy || []), this.currentUser.id]
+        });
+
+        // End animation after a short delay
+        setTimeout(() => {
+          this.isLikeAnimating = false;
+        }, 300);
+      } catch (error) {
+        console.error('Error toggling like:', error);
+        this.isLikeAnimating = false;
+      }
+    },
+
     async sendMessage() {
       if (this.newMessage.trim() !== '' || this.file) {
         const messageData = {
@@ -105,7 +165,8 @@ export default {
           content: this.newMessage.trim(),
           timestamp: serverTimestamp(),
           time: new Date().toLocaleTimeString(),
-          likes: 0
+          likes: 0,
+          likedBy: [] // Initialize empty likedBy array
         };
 
         if (this.file) {
@@ -128,6 +189,7 @@ export default {
         }
       }
     },
+
     async uploadFile(file) {
       const storage = getStorage();
       const fileName = `${Date.now()}-${file.name}`; // Add timestamp to prevent naming conflicts
@@ -141,29 +203,7 @@ export default {
         return null;
       }
     },
-    async likeMessage(message) {
-  if (!message.id) {
-    console.error('Message ID is missing');
-    return;
-  }
 
-  const messageRef = doc(db, 'GroupMessages', this.group.id, 'messages', message.id);
-
-  // Check if the user has already liked the message
-  if (message.likedBy && message.likedBy.includes(this.currentUser.id)) {
-    console.log('User has already liked this message');
-    return;
-  }
-
-  try {
-    await updateDoc(messageRef, {
-      likes: (message.likes || 0) + 1,
-      likedBy: message.likedBy ? [...message.likedBy, this.currentUser.id] : [this.currentUser.id]
-    });
-  } catch (error) {
-    console.error('Error updating likes:', error);
-  }
-},
     onFileChange(event) {
       const file = event.target.files[0];
       if (file) {
@@ -174,16 +214,18 @@ export default {
         }
       }
     },
+
     listenForMessages() {
       const messagesRef = collection(db, 'GroupMessages', this.group.id, 'messages');
       onSnapshot(messagesRef, (snapshot) => {
         this.messages = snapshot.docs.map(doc => ({
-          id: doc.id,  // Include the document ID
+          id: doc.id,
           ...doc.data()
         }));
         this.scrollToBottom();
       });
     },
+
     scrollToBottom() {
       this.$nextTick(() => {
         const chatBody = this.$el.querySelector('.overflow-y-auto');
@@ -221,5 +263,15 @@ export default {
 
 .text-blue-900 {
   color: #2b6cb0;
+}
+
+@keyframes likeAnimation {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.like-animation {
+  animation: likeAnimation 0.3s ease-in-out;
 }
 </style>
