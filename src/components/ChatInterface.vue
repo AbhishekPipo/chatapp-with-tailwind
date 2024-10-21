@@ -36,9 +36,9 @@
               </video>
             </p>
             <p class="text-xs text-right text-gray-500">{{ message.time }}</p>
+            <!-- Show like button only for messages with images -->
             <div v-if="message.imageUrl" class="flex items-center justify-between mt-2">
               <button 
-            
                 @click="toggleLike(message)" 
                 class="flex items-center gap-1 focus:outline-none"
                 :class="{ 'like-animation': isLikeAnimating }"
@@ -164,7 +164,7 @@ export default {
           sender: this.currentUser.name,
           senderId: this.currentUser.id,
           content: this.newMessage.trim(),
-          timestamp: serverTimestamp(),
+          timestamp: serverTimestamp(), // Firebase timestamp
           time: new Date().toLocaleTimeString(),
           likes: 0,
           likedBy: [] // Initialize empty likedBy array
@@ -222,57 +222,39 @@ export default {
         this.messages = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        }));
-        this.scrollToBottom();
+        })).sort((a, b) => a.timestamp.toMillis() - b.timestamp.toMillis()); // Sort messages in ascending order
+
+        this.scrollToBottom(); // Scroll to bottom after loading messages
       });
     },
 
     scrollToBottom() {
       this.$nextTick(() => {
-        const chatBody = this.$el.querySelector('.overflow-y-auto');
+        const chatBody = this.$el.querySelector('.flex-1');
         chatBody.scrollTop = chatBody.scrollHeight;
       });
     }
   },
   mounted() {
-    // Fetch current user from localStorage
-    const storedUser = JSON.parse(localStorage.getItem('currentUser'));
-    if (storedUser) {
-      this.currentUser = storedUser;
-    }
-
-    // Start listening for messages
+    this.currentUser = JSON.parse(localStorage.getItem('currentUser')) || {};
     this.listenForMessages();
   }
 };
 </script>
-
-<style scoped>
-.self-start {
-  align-self: flex-start;
-  margin-right: auto;
-}
-
-.self-end {
-  align-self: flex-end;
-  margin-left: auto;
-}
-
-.bg-blue-100 {
-  background-color: #ebf8ff;
-}
-
-.text-blue-900 {
-  color: #2b6cb0;
+<style>
+.like-animation {
+  animation: likeAnimation 0.3s ease;
 }
 
 @keyframes likeAnimation {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); }
-}
-
-.like-animation {
-  animation: likeAnimation 0.3s ease-in-out;
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 </style>
