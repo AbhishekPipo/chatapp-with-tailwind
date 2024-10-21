@@ -142,21 +142,28 @@ export default {
       }
     },
     async likeMessage(message) {
-      if (!message.id) {
-        console.error('Message ID is missing');
-        return;
-      }
+  if (!message.id) {
+    console.error('Message ID is missing');
+    return;
+  }
 
-      const messageRef = doc(db, 'GroupMessages', this.group.id, 'messages', message.id);
+  const messageRef = doc(db, 'GroupMessages', this.group.id, 'messages', message.id);
 
-      try {
-        await updateDoc(messageRef, {
-          likes: (message.likes || 0) + 1
-        });
-      } catch (error) {
-        console.error('Error updating likes:', error);
-      }
-    },
+  // Check if the user has already liked the message
+  if (message.likedBy && message.likedBy.includes(this.currentUser.id)) {
+    console.log('User has already liked this message');
+    return;
+  }
+
+  try {
+    await updateDoc(messageRef, {
+      likes: (message.likes || 0) + 1,
+      likedBy: message.likedBy ? [...message.likedBy, this.currentUser.id] : [this.currentUser.id]
+    });
+  } catch (error) {
+    console.error('Error updating likes:', error);
+  }
+},
     onFileChange(event) {
       const file = event.target.files[0];
       if (file) {
