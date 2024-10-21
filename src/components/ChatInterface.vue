@@ -36,8 +36,9 @@
               </video>
             </p>
             <p class="text-xs text-right text-gray-500">{{ message.time }}</p>
-            <div class="flex items-center justify-between mt-2">
+            <div v-if="message.imageUrl" class="flex items-center justify-between mt-2">
               <button 
+            
                 @click="toggleLike(message)" 
                 class="flex items-center gap-1 focus:outline-none"
                 :class="{ 'like-animation': isLikeAnimating }"
