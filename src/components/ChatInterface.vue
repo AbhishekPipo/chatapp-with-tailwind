@@ -20,7 +20,7 @@
 
     <!-- Chat Body -->
     <div class="flex-1 p-4 overflow-y-auto space-y-4">
-      <div v-for="(message, index) in messages" :key="index" class="flex flex-col">
+      <div v-for="message in messages" :key="message.id" class="flex flex-col">
         <!-- Display the sender's name above the message -->
         <p :class="[messageClass(message), 'text-xs text-gray-600']">{{ message.sender }}</p>
         <div :class="[messageClass(message), 'max-w-xs lg:max-w-md']">
@@ -58,6 +58,7 @@
         <input
           type="file"
           @change="onFileChange"
+          accept="image/*,video/*"
           class="ml-2"
         />
         <button @click="sendMessage" class="ml-4 bg-blue-500 text-white px-4 py-2 rounded-lg">
@@ -70,91 +71,110 @@
 </template>
 
 <script>
-import { collection, addDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
-// import { ref } from 'vue';
+import { collection, addDoc, onSnapshot, serverTimestamp, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default {
   name: 'ChatInterface',
   props: {
-    group: Object
+    group: {
+      type: Object,
+      required: true
+    }
   },
   data() {
     return {
       newMessage: '',
-      currentUser: {}, // Placeholder for current user data
-      messages: [], // Will be populated with messages from Firestore
-      file: null, // Store the uploaded file
+      currentUser: {}, // Will be populated from localStorage
+      messages: [], // Will contain messages with their IDs
+      file: null,
     };
   },
   methods: {
     messageClass(message) {
       return message.senderId === this.currentUser.id
-        ? 'self-end' // Align messages from the current user to the right
-        : 'self-start'; // Align messages from other users to the left
+        ? 'self-end'
+        : 'self-start';
     },
     async sendMessage() {
       if (this.newMessage.trim() !== '' || this.file) {
-        // Prepare the message data
         const messageData = {
           sender: this.currentUser.name,
           senderId: this.currentUser.id,
-          content: this.newMessage,
+          content: this.newMessage.trim(),
           timestamp: serverTimestamp(),
-          time: new Date().toLocaleTimeString(), // For display purposes
-          likes: 0 // Initialize likes
+          time: new Date().toLocaleTimeString(),
+          likes: 0
         };
 
-        // If a file is uploaded, handle its upload logic
         if (this.file) {
-          const fileUrl = await this.uploadFile(this.file); // Upload file and get URL
+          const fileUrl = await this.uploadFile(this.file);
           if (fileUrl) {
-            messageData.imageUrl = fileUrl; // Add image URL to message data
+            if (this.file.type.startsWith('image/')) {
+              messageData.imageUrl = fileUrl;
+            } else if (this.file.type.startsWith('video/')) {
+              messageData.videoUrl = fileUrl;
+            }
           }
-          this.file = null; // Clear the file input after sending
+          this.file = null;
         }
 
         try {
-          // Send message to Firestore
           await addDoc(collection(db, 'GroupMessages', this.group.id, 'messages'), messageData);
-          this.newMessage = ''; // Clear input field
+          this.newMessage = '';
         } catch (error) {
-          console.error('Error sending message: ', error);
+          console.error('Error sending message:', error);
         }
       }
     },
     async uploadFile(file) {
       const storage = getStorage();
-      const storageReference = storageRef(storage, `images/${file.name}`);
+      const fileName = `${Date.now()}-${file.name}`; // Add timestamp to prevent naming conflicts
+      const storageReference = storageRef(storage, `${file.type.startsWith('image/') ? 'images' : 'videos'}/${fileName}`);
       
       try {
-        // Upload the file
-        await uploadBytes(storageReference, file);
-        // Get the download URL
-        const downloadURL = await getDownloadURL(storageReference);
-        return downloadURL; // Return the file URL
+        const snapshot = await uploadBytes(storageReference, file);
+        return await getDownloadURL(snapshot.ref);
       } catch (error) {
-        console.error('Error uploading file: ', error);
-        return null; // Return null if upload fails
+        console.error('Error uploading file:', error);
+        return null;
       }
     },
-    likeMessage(message) {
-      // Logic to increment likes for the message
-      message.likes = (message.likes || 0) + 1;
-      // You may also want to update the likes count in Firestore here
+    async likeMessage(message) {
+      if (!message.id) {
+        console.error('Message ID is missing');
+        return;
+      }
+
+      const messageRef = doc(db, 'GroupMessages', this.group.id, 'messages', message.id);
+
+      try {
+        await updateDoc(messageRef, {
+          likes: (message.likes || 0) + 1
+        });
+      } catch (error) {
+        console.error('Error updating likes:', error);
+      }
     },
     onFileChange(event) {
       const file = event.target.files[0];
       if (file) {
-        this.file = file; // Store the selected file
+        if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+          this.file = file;
+        } else {
+          alert('Please select an image or video file');
+        }
       }
     },
     listenForMessages() {
       const messagesRef = collection(db, 'GroupMessages', this.group.id, 'messages');
       onSnapshot(messagesRef, (snapshot) => {
-        this.messages = snapshot.docs.map(doc => doc.data());
-        this.scrollToBottom(); // Scroll to bottom after loading messages
+        this.messages = snapshot.docs.map(doc => ({
+          id: doc.id,  // Include the document ID
+          ...doc.data()
+        }));
+        this.scrollToBottom();
       });
     },
     scrollToBottom() {
@@ -168,17 +188,16 @@ export default {
     // Fetch current user from localStorage
     const storedUser = JSON.parse(localStorage.getItem('currentUser'));
     if (storedUser) {
-      this.currentUser = storedUser; // Set current user from localStorage
+      this.currentUser = storedUser;
     }
 
-    // Fetch messages in real-time when the component is mounted
+    // Start listening for messages
     this.listenForMessages();
   }
 };
 </script>
 
 <style scoped>
-/* Adjust chat UI based on the message sender */
 .self-start {
   align-self: flex-start;
   margin-right: auto;
@@ -189,7 +208,6 @@ export default {
   margin-left: auto;
 }
 
-/* Styling for message bubbles */
 .bg-blue-100 {
   background-color: #ebf8ff;
 }
