@@ -217,16 +217,20 @@ export default {
     },
 
     listenForMessages() {
-      const messagesRef = collection(db, 'GroupMessages', this.group.id, 'messages');
-      onSnapshot(messagesRef, (snapshot) => {
-        this.messages = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })).sort((a, b) => a.timestamp.toMillis() - b.timestamp.toMillis()); // Sort messages in ascending order
+  const messagesRef = collection(db, 'GroupMessages', this.group.id, 'messages');
+  onSnapshot(messagesRef, (snapshot) => {
+    this.messages = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })).sort((a, b) => {
+      const aTimestamp = a.timestamp ? a.timestamp.toMillis() : 0; // Handle null timestamps
+      const bTimestamp = b.timestamp ? b.timestamp.toMillis() : 0; // Handle null timestamps
+      return aTimestamp - bTimestamp; // Sort in ascending order
+    });
 
-        this.scrollToBottom(); // Scroll to bottom after loading messages
-      });
-    },
+    this.scrollToBottom(); // Scroll to bottom after loading messages
+  });
+},
 
     scrollToBottom() {
       this.$nextTick(() => {
