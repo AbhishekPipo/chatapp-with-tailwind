@@ -30,7 +30,7 @@ export default {
 
     // Computed property to check if the current route is the login route
     const isLoginRoute = computed(() => {
-      return route.name === 'Login' // Adjust this to match your login route's name
+      return route.name === 'Login' || route.name === 'SignUp'// Adjust this to match your login route's name
     })
 
     return {

@@ -4,11 +4,11 @@
       <form @submit.prevent="register" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
         <h2 class="text-lg font-bold mb-4">Sign Up</h2>
         <div class="mb-4">
-          <label class="block text-gray-700 text-sm font-bold mb-2" for="username">Username</label>
+          <label class="block text-gray-700 text-sm font-bold mb-2" for="email">Email</label>
           <input
-            type="text"
-            id="username"
-            v-model="username"
+            type="email"
+            id="email"
+            v-model="email"
             required
             class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
           />
@@ -40,22 +40,26 @@
 import { ref } from 'vue';
 import { db } from '../firebase'; // Import Firestore
 import { collection, addDoc } from 'firebase/firestore';
+import { useRouter } from 'vue-router'; // Import useRouter
 
 export default {
   name: 'SignUpComponent',
   setup() {
-    const username = ref('');
+    const email = ref('');
     const password = ref('');
+    const router = useRouter(); // Initialize useRouter
 
     const register = async () => {
-      if (username.value && password.value) {
+      if (email.value && password.value) {
         try {
           const usersRef = collection(db, 'users');
           await addDoc(usersRef, {
-            username: username.value,
+            email: email.value,
             password: password.value, // Consider hashing passwords for security
           });
           alert('User registered successfully!');
+          router.push({ name: 'Login' }); // Change 'Login' to the name of your route
+
         } catch (error) {
           console.error("Error adding document: ", error);
           alert('Failed to register user.');
@@ -66,7 +70,7 @@ export default {
     };
 
     return {
-      username,
+      email,
       password,
       register,
     };
