@@ -41,6 +41,7 @@ import { ref } from 'vue';
 import { db } from '../firebase'; // Import Firestore
 import { collection, addDoc } from 'firebase/firestore';
 import { useRouter } from 'vue-router'; // Import useRouter
+import { v4 as uuidv4 } from 'uuid'; // Import the uuid library
 
 export default {
   name: 'SignUpComponent',
@@ -50,24 +51,28 @@ export default {
     const router = useRouter(); // Initialize useRouter
 
     const register = async () => {
-      if (email.value && password.value) {
-        try {
-          const usersRef = collection(db, 'users');
-          await addDoc(usersRef, {
-            email: email.value,
-            password: password.value, // Consider hashing passwords for security
-          });
-          alert('User registered successfully!');
-          router.push({ name: 'Login' }); // Change 'Login' to the name of your route
+  if (email.value && password.value) {
+    try {
+      const usersRef = collection(db, 'users');
+      const newUserId = uuidv4(); // Generate a random unique ID
 
-        } catch (error) {
-          console.error("Error adding document: ", error);
-          alert('Failed to register user.');
-        }
-      } else {
-        alert('Please fill in all fields.');
-      }
-    };
+      await addDoc(usersRef, {
+        id: newUserId, // Add the generated ID to the user document
+        email: email.value,
+        password: password.value, // Consider hashing passwords for security
+      });
+
+      alert('User registered successfully!');
+      router.push({ name: 'Login' }); // Change 'Login' to the name of your route
+
+    } catch (error) {
+      console.error("Error adding document: ", error);
+      alert('Failed to register user.');
+    }
+  } else {
+    alert('Please fill in all fields.');
+  }
+};
 
     return {
       email,

@@ -4,11 +4,11 @@
       <h2 class="text-2xl font-bold mb-6 text-center">Login</h2>
       <form @submit.prevent="login">
         <div class="mb-4">
-          <label for="username" class="block text-sm font-medium text-gray-700">Email</label>
+          <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
           <input
-            type="text"
-            id="username"
-            v-model="username"
+            type="email"
+            id="email"
+            v-model="email"
             required
             class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-blue-500"
           />
@@ -30,7 +30,6 @@
           Login
         </button>
       </form>
-      
       <div class="mt-6 text-center">
         <button
           @click="googleSignIn"
@@ -46,80 +45,86 @@
     </div>
   </div>
 </template>
-
 <script>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { db } from '../firebase'; // Import Firestore instance
 import { collection, query, where, getDocs, doc, setDoc, getDoc } from 'firebase/firestore'; // Import Firestore methods
 import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth'; // Import Firebase Auth and Google provider
-
 export default {
   name: 'LoginComponent',
   setup() {
-    const username = ref('');
+    const email = ref('');
     const password = ref('');
     const router = useRouter();
-
     // Normal email/password login
     const login = async () => {
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, where('email', '==', username.value));
-      const querySnapshot = await getDocs(q);
+  const usersRef = collection(db, 'users');
+  const q = query(usersRef, where('email', '==', email.value));
+  const querySnapshot = await getDocs(q);
 
-      if (!querySnapshot.empty) {
-        const userDoc = querySnapshot.docs[0].data();
+  if (!querySnapshot.empty) {
+    const userDoc = querySnapshot.docs[0].data();
+    
+    // Check if the password matches
+    if (userDoc.password === password.value) {
+      // User logged in successfully, store their data
+      const usernameFromEmail = userDoc.email.split('@')[0]; // Extract username from email
+      const userData = {
+        URL: userDoc.URL || '', // Default to empty if not set
+        description: userDoc.description || '', // Default to empty if not set
+        email: userDoc.email,
+        id: querySnapshot.docs[0].id, // Use document ID from Firestore
+        name: userDoc.name || usernameFromEmail, // Default name if not set
+        password: userDoc.password, // Default password if not set
+      };
 
-        if (userDoc.password === password.value) {
-          // Store user in localStorage
-          localStorage.setItem('currentUser', JSON.stringify(userDoc));
-          alert('Login successful!');
-          router.push({ name: 'Messages' });
-        } else {
-          alert('Invalid username or password.');
-        }
-      } else {
-        alert('Invalid username or password.');
-      }
-    };
+      localStorage.setItem('currentUser', JSON.stringify(userData));
+
+      // Update user data if specific conditions are met
+      // if (userDoc.someProperty && userDoc.someProperty.length <= 3) { // Replace 'someProperty' with your specific field
+      await setDoc(doc(db, 'users', querySnapshot.docs[0].id), {
+  ...userData, // Spread the existing data
+});
+
+      // }
+
+      alert('Login successful!');
+      router.push({ name: 'Messages' });
+    } else {
+      alert('Invalid email or password.');
+    }
+  } else {
+    // If no user found, create a new document with default values
+    alert('User not found.');
+  }
+};
 
     // Google SSO login
     const googleSignIn = async () => {
       const auth = getAuth();
       const provider = new GoogleAuthProvider();
-
       try {
-        // Sign in with Google
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
-
         // Prepare user data
         const userData = {
           email: user.email,
           id: user.uid, // Firebase UID
-          name: user.displayName,
+          name: user.displayName || 'User', // Default name if not provided
           password: 'admin@123', // Default password, can be omitted
           URL: '', // Placeholder for user URL
           description: '', // Placeholder for user description
         };
-
-        // Reference to the user's document in Firestore
         const userDocRef = doc(db, 'users', user.uid);
-
-        // Check if the user already exists in Firestore
         const userDocSnap = await getDoc(userDocRef);
         if (!userDocSnap.exists()) {
-          // If user doesn't exist, create the document in Firestore
           await setDoc(userDocRef, userData);
           console.log('New user document created in Firestore.');
         } else {
           console.log('User document already exists in Firestore.');
         }
-
-        // Store user data in localStorage
         localStorage.setItem('currentUser', JSON.stringify(userData));
-
-        // Redirect to the Messages page
         alert('Google sign-in successful!');
         router.push({ name: 'Messages' });
       } catch (error) {
@@ -127,9 +132,8 @@ export default {
         alert('Google sign-in failed. Please try again.');
       }
     };
-
     return {
-      username,
+      email,
       password,
       login,
       googleSignIn,
@@ -137,7 +141,6 @@ export default {
   },
 };
 </script>
-
 <style scoped>
 /* Add any additional styles if needed */
 </style>
