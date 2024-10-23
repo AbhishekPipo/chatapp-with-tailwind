@@ -39,6 +39,10 @@
           Sign in with Google
         </button>
       </div>
+      <p class="mt-4 text-sm text-gray-600 text-center">
+        Don't have an account? 
+        <router-link to="/signup" class="text-blue-600 hover:underline">Sign Up</router-link>
+      </p>
     </div>
   </div>
 </template>

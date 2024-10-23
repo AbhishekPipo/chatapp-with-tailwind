@@ -3,6 +3,7 @@ import Messages from '../views/MessagesView.vue'
 import LoginView from '@/views/LoginView.vue'
 import GroupsView from '@/views/GroupsView.vue'
 import CreateGroup from '@/components/CreateGroup.vue'
+import SignUp from '@/views/SignUp.vue'
 
 const routes = [
   {
@@ -26,6 +27,13 @@ const routes = [
     name: 'CreateGroup',
     component: CreateGroup
   },
+  {
+    path: '/signup',
+    name: 'SignUp',
+    component: SignUp
+
+    // Add the SignupView component here
+  }
   // Add more routes here
 ]
 
