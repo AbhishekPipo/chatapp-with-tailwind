@@ -7,3 +7,7 @@
       font-family: 'Poppins', sans-serif;
     }
   }
+  .toast {
+    width: 600px; /* Set your desired width */
+    max-width: 100%; /* Optional: restrict max width on smaller screens */
+  }

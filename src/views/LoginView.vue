@@ -89,14 +89,20 @@ export default {
           });
 
           // Show success toast
-          toast.success('Login successful!'); // Use toast
+          toast.success('Login successful!',{
+            position: 'top-right', 
+          }); // Use toast
           router.push({ name: 'Messages' });
         } else {
-          toast.error('Invalid email or password.'); // Use toast
+          toast.error('Invalid email or password.',{
+            position: 'top-right', 
+          }); // Use toast
         }
       } else {
         // If no user found
-        toast.error('User not found.'); // Use toast
+        toast.error('User not found.',{
+          position: 'top-right', 
+        }); // Use toast
       }
     };
 
@@ -125,11 +131,15 @@ export default {
           console.log('User document already exists in Firestore.');
         }
         localStorage.setItem('currentUser', JSON.stringify(userData));
-        toast.success('Google sign-in successful!'); // Use toast
+        toast.success('Google sign-in successful!',{
+          position: 'top-right', 
+        }); // Use toast
         router.push({ name: 'Messages' });
       } catch (error) {
         console.error('Google sign-in failed:', error.message);
-        toast.error('Google sign-in failed. Please try again.'); // Use toast
+        toast.error('Google sign-in failed. Please try again.',{
+          position: 'top-right', 
+        }); // Use toast
       }
     };
 
@@ -144,5 +154,6 @@ export default {
 </script>
 
 <style scoped>
-/* Add any additional styles if needed */
+
 </style>
+
